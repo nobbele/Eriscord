@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use async_trait::async_trait;
 use eriscord::{
     client::{self, Client},
@@ -5,8 +7,7 @@ use eriscord::{
     parser::Command,
     send_message, EventHandler,
 };
-
-const TOKEN: &str = "YOUR TOKEN";
+use serde::{Deserialize, Serialize};
 
 struct TestBot {
     n: u32,
@@ -42,9 +43,30 @@ impl EventHandler for TestBot {
     }
 }
 
+#[derive(Deserialize, Serialize)]
+struct Config {
+    token: String,
+}
+
 #[tokio::main]
 async fn main() {
-    let client = Client::new(TOKEN.to_owned());
+    let config_path = Path::new("./botconfig.toml");
+    let config: Config = if config_path.exists() {
+        let config_str = std::fs::read_to_string(config_path).unwrap();
+        toml::from_str(&config_str).unwrap()
+    } else {
+        let config = Config {
+            token: "YOUR TOKEN".to_owned(),
+        };
+        let config_str = toml::to_string_pretty(&config).unwrap();
+        std::fs::write(config_path, config_str).unwrap();
+        eprintln!(
+            "Please enter the required information in {}",
+            config_path.display()
+        );
+        std::process::exit(1);
+    };
+    let client = Client::new(config.token);
     let bot = TestBot::new();
 
     client::run(client, bot).await;
