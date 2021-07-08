@@ -1,11 +1,14 @@
-use async_trait::async_trait;
+pub use async_trait::async_trait;
 use client::Client;
 use parser::Command;
-use serde_json::json;
+pub use tokio;
+
+use crate::message::Message;
 
 pub mod client;
 pub mod event;
 pub(crate) mod gateway;
+pub mod message;
 pub mod parser;
 
 #[async_trait(?Send)]
@@ -28,14 +31,13 @@ pub trait EventHandler: Sync {
     }
 }
 
-pub async fn send_message(client: &Client, channel_id: &str, content: &str) {
+pub async fn send_message<'a>(client: &Client, channel_id: &str, message: impl Into<Message<'a>>) {
+    let message: Message = message.into();
+    println!("{:?}", message);
     let client = &client.inner.lock().unwrap().web;
     let post = client.post(format!(
         "https://discord.com/api/v9/channels/{}/messages",
         channel_id
     ));
-    post.json(&json!({ "content": content }))
-        .send()
-        .await
-        .unwrap();
+    post.json(&message).send().await.unwrap();
 }

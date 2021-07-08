@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use async_trait::async_trait;
 use eriscord::{
+    async_trait,
     client::{self, Client},
     event::MessageCreateEvent,
     parser::Command,
