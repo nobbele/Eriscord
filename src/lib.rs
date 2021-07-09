@@ -15,7 +15,7 @@ pub mod parser;
 pub trait EventHandler: Sync {
     async fn on_message_create(&mut self, client: &Client, event: &event::MessageCreateEvent) {
         let command = {
-            let parser = &client.inner.lock().unwrap().parser;
+            let parser = &client.inner.parser;
             parser.parse_command(&event.content)
         };
         if let Some(command) = command {
@@ -33,8 +33,7 @@ pub trait EventHandler: Sync {
 
 pub async fn send_message<'a>(client: &Client, channel_id: &str, message: impl Into<Message<'a>>) {
     let message: Message = message.into();
-    println!("{:?}", message);
-    let client = &client.inner.lock().unwrap().web;
+    let client = &client.inner.web;
     let post = client.post(format!(
         "https://discord.com/api/v9/channels/{}/messages",
         channel_id

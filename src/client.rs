@@ -1,5 +1,5 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -20,14 +20,14 @@ use crate::{
 
 pub(crate) struct ClientRaw {
     pub(crate) web: reqwest::Client,
-    pub(crate) seq: Option<u64>,
     pub(crate) parser: CommandParser,
+    pub(crate) seq: RwLock<Option<u64>>,
+    pub(crate) token: String,
 }
 
 #[derive(Clone)]
 pub struct Client {
-    pub(crate) inner: Arc<Mutex<ClientRaw>>,
-    pub(crate) token: String,
+    pub(crate) inner: Arc<ClientRaw>,
 }
 
 impl Client {
@@ -46,14 +46,14 @@ impl Client {
         };
 
         let raw = ClientRaw {
+            seq: RwLock::new(None),
             web,
-            seq: None,
             parser: CommandParser::new(".".to_owned()),
+            token,
         };
 
         Client {
-            inner: Arc::new(Mutex::new(raw)),
-            token,
+            inner: Arc::new(raw),
         }
     }
 }
@@ -67,8 +67,6 @@ pub async fn run<T: EventHandler>(client: Client, mut bot: T) -> ! {
 
         let response = client
             .inner
-            .lock()
-            .unwrap()
             .web
             .get("https://discord.com/api/v9/gateway")
             .send()
@@ -102,7 +100,7 @@ pub async fn run<T: EventHandler>(client: Client, mut bot: T) -> ! {
             let json = json!({
                 "op": 2,
                 "d": {
-                    "token": client.token,
+                    "token": client.inner.token,
                     "properties": {
                         "$os": "Windows 10",
                         "$browser": "foo",
@@ -144,7 +142,7 @@ pub async fn run<T: EventHandler>(client: Client, mut bot: T) -> ! {
                     interval.tick().await;
                     let json = json!({
                         "op": 1,
-                        "d": client.lock().unwrap().seq
+                        "d": client.seq
                     });
                     let json_str = serde_json::to_string(&json).unwrap();
                     println!("Sending Heartbeat");
@@ -159,7 +157,7 @@ pub async fn run<T: EventHandler>(client: Client, mut bot: T) -> ! {
                 Ok(Message::Text(text)) => {
                     let packet = parse_gateway_packet(text).unwrap();
                     if let Some(seq) = packet.seq {
-                        client.inner.lock().unwrap().seq = Some(seq);
+                        *client.inner.seq.write().unwrap() = Some(seq);
                     }
                     match packet.data {
                         PacketData::Event(event) => match event {
@@ -183,8 +181,8 @@ fn read_hello_message(client: &Client, msg: Message) -> Result<Duration, ()> {
 
         assert_eq!(value.op, 10);
 
-        if let Some(n) = value.seq {
-            client.inner.lock().unwrap().seq = Some(n);
+        if let Some(seq) = value.seq {
+            *client.inner.seq.write().unwrap() = Some(seq);
         }
 
         return Ok(Duration::from_millis(value.data.heartbeat_interval));
@@ -198,8 +196,8 @@ fn read_ready_message(client: &Client, msg: Message) -> Result<gateway::ReadyDat
 
         assert_eq!(value.op, 0);
 
-        if let Some(n) = value.seq {
-            client.inner.lock().unwrap().seq = Some(n);
+        if let Some(seq) = value.seq {
+            *client.inner.seq.write().unwrap() = Some(seq);
         }
 
         return Ok(value.data);

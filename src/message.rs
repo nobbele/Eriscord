@@ -377,3 +377,9 @@ impl<'a> From<&'a String> for Message<'a> {
         Message::from(s as &str)
     }
 }
+
+impl<'a> From<Embed<'a>> for Message<'a> {
+    fn from(embed: Embed<'a>) -> Self {
+        Message::default().with_embed(embed)
+    }
+}
