@@ -116,7 +116,7 @@ pub struct Packet {
 #[derive(Debug)]
 pub enum PacketParseError {
     UnknownPacket(u64),
-    UnknownEvent(String),
+    UnknownEvent(String, serde_json::Value),
 }
 
 pub fn parse_gateway_packet(text: String) -> Result<Packet, PacketParseError> {
@@ -136,7 +136,7 @@ pub fn parse_gateway_packet(text: String) -> Result<Packet, PacketParseError> {
                         content: data.content,
                     })
                 }
-                name => return Err(PacketParseError::UnknownEvent(name.to_owned())),
+                name => return Err(PacketParseError::UnknownEvent(name.to_owned(), resp.data)),
             };
             PacketData::Event(event)
         }

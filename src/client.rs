@@ -151,11 +151,17 @@ pub async fn run<T: EventHandler>(client: Client, mut bot: T) -> ! {
             }
         });
 
-        loop {
+        'event_loop: loop {
             let message = read.next().await.expect("WebSocket Disconnected");
             match message {
                 Ok(Message::Text(text)) => {
-                    let packet = parse_gateway_packet(text).unwrap();
+                    let packet = match parse_gateway_packet(text) {
+                        Ok(packet) => packet,
+                        Err(e) => {
+                            eprintln!("Error: {:?}", e);
+                            continue 'event_loop;
+                        }
+                    };
                     if let Some(seq) = packet.seq {
                         *client.inner.seq.write().unwrap() = Some(seq);
                     }
