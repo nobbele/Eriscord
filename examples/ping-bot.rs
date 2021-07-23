@@ -9,13 +9,11 @@ use eriscord::{
 };
 use serde::{Deserialize, Serialize};
 
-struct TestBot {
-    n: u32,
-}
+struct TestBot {}
 
 impl TestBot {
     pub fn new() -> Self {
-        Self { n: 0 }
+        Self {}
     }
 }
 
@@ -28,17 +26,8 @@ impl EventHandler for TestBot {
         command: Command<'_>,
     ) {
         match command.action {
-            "ping" => {
-                send_message(client, &event.channel_id, &format!("pong {}", self.n)).await;
-                self.n += 1;
-            }
-            "echo" => {
-                let args = command.unparsed_args.parse(true);
-                send_message(client, &event.channel_id, &args.text.unwrap()).await;
-            }
-            _ => {
-                send_message(client, &event.channel_id, "Invalid command").await;
-            }
+            "ping" => send_message(client, &event.channel_id, "pong").await,
+            _ => send_message(client, &event.channel_id, "Invalid command").await,
         }
     }
 }
