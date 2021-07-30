@@ -3,7 +3,8 @@ use std::path::Path;
 use eriscord::{
     async_trait,
     client::{self, Client},
-    event::MessageCreateEvent,
+    event::{InteractionCreateEvent, MessageCreateEvent},
+    message::{Component, ComponentType, Message, SelectOption},
     parser::Command,
     send_message, EventHandler,
 };
@@ -26,9 +27,43 @@ impl EventHandler for TestBot {
         command: Command<'_>,
     ) {
         match command.action {
-            "ping" => send_message(client, &event.channel_id, "pong").await,
+            "test" => {
+                send_message(
+                    client,
+                    &event.channel_id,
+                    Message::new().with_text("Hello World").with_new_component(
+                        Component::new()
+                            .with_component_type(ComponentType::SelectMenu)
+                            .with_custom_id("select_one")
+                            .with_new_option(
+                                SelectOption::new().with_label("Test 1").with_value("val1"),
+                            )
+                            .with_new_option(
+                                SelectOption::new().with_label("Test 2").with_value("val2"),
+                            ),
+                    ),
+                )
+                .await
+            }
             _ => send_message(client, &event.channel_id, "Invalid command").await,
         }
+    }
+    async fn on_interaction(
+        &mut self,
+        _client: &Client,
+        event: &InteractionCreateEvent,
+    ) -> Option<Message> {
+        Some(
+            match event.custom_id.as_str() {
+                "select_one" => match event.values[0].as_str() {
+                    "val1" => "You chose the option containing 'val1'",
+                    "val2" => "You chose the option containing 'val2'",
+                    _ => "Unknown",
+                },
+                _ => "Unknown",
+            }
+            .into(),
+        )
     }
 }
 

@@ -341,11 +341,143 @@ impl<'a> Embed<'a> {
     }
 }
 
+#[derive(serde_repr::Serialize_repr, Debug)]
+#[repr(u32)]
+pub enum ComponentType {
+    ActionRow = 1,
+    Button = 2,
+    SelectMenu = 3,
+}
+
+impl Default for ComponentType {
+    fn default() -> Self {
+        Self::ActionRow
+    }
+}
+
+#[derive(serde_repr::Serialize_repr, Debug)]
+#[repr(u32)]
+pub enum ButtonStyle {
+    Primary = 1,
+    Secondary = 2,
+    Success = 3,
+    Danger = 4,
+    Link = 5,
+}
+
+impl Default for ButtonStyle {
+    fn default() -> Self {
+        Self::Primary
+    }
+}
+
+#[derive(serde::Serialize, Debug, Default)]
+pub struct SelectOption<'a> {
+    label: Option<&'a str>,
+    value: Option<&'a str>,
+    description: Option<&'a str>,
+    emoji: Option<()>, // TODO
+    default: Option<bool>,
+}
+
+impl<'a> SelectOption<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub fn with_label(mut self, label: &'a str) -> Self {
+        self.label = Some(label);
+        self
+    }
+
+    #[must_use]
+    pub fn with_value(mut self, value: &'a str) -> Self {
+        self.value = Some(value);
+        self
+    }
+}
+
+// TODO enum
+#[derive(serde::Serialize, Debug, Default)]
+pub struct Component<'a> {
+    #[serde(rename = "type")]
+    component_type: ComponentType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    custom_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    disabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    style: Option<ButtonStyle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    label: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    emoji: Option<()>, // TODO,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    options: Vec<SelectOption<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    placeholder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    min_values: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_values: Option<u32>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    components: Vec<Component<'a>>,
+}
+
+impl<'a> Component<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub fn with_component_type(mut self, component_type: ComponentType) -> Self {
+        self.component_type = component_type;
+        self
+    }
+
+    #[must_use]
+    pub fn with_label(mut self, label: &'a str) -> Self {
+        self.label = Some(label);
+        self
+    }
+
+    #[must_use]
+    pub fn with_custom_id(mut self, custom_id: &'a str) -> Self {
+        self.custom_id = Some(custom_id);
+        self
+    }
+
+    #[must_use]
+    pub fn with_disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+
+    #[must_use]
+    pub fn with_style(mut self, style: ButtonStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+
+    #[must_use]
+    pub fn with_new_option(mut self, option: SelectOption<'a>) -> Self {
+        self.options.push(option);
+        self
+    }
+}
+
 #[derive(serde::Serialize, Debug, Default)]
 pub struct Message<'a> {
     #[serde(rename = "content")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     text: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     embed: Option<Embed<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    components: Vec<Component<'a>>,
 }
 
 impl<'a> Message<'a> {
@@ -362,6 +494,26 @@ impl<'a> Message<'a> {
     #[must_use]
     pub fn with_embed(mut self, embed: Embed<'a>) -> Self {
         self.embed = Some(embed);
+        self
+    }
+
+    #[must_use]
+    pub fn with_component_row(mut self, components: Vec<Component<'a>>) -> Self {
+        self.components = components;
+        self
+    }
+
+    #[must_use]
+    pub fn with_new_component(mut self, component: Component<'a>) -> Self {
+        let top_level = if self.components.len() == 1 {
+            &mut self.components[0]
+        } else if self.components.len() == 0 {
+            self.components.push(Component::new());
+            &mut self.components[0]
+        } else {
+            panic!("This function can't be used with multi-level components");
+        };
+        top_level.components.push(component);
         self
     }
 }

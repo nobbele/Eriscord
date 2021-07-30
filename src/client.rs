@@ -170,6 +170,21 @@ pub async fn run<T: EventHandler>(client: Client, mut bot: T) -> ! {
                             event::Event::MessageCreate(event) => {
                                 bot.on_message_create(&client, &event).await;
                             }
+                            event::Event::InteractionCreate(event) => {
+                                let response_message = bot.on_interaction(&client, &event).await;
+
+                                // Interactions must be ACK'd
+                                let client = &client.inner.web;
+                                let post = client.post(format!(
+                                    "https://discord.com/api/v9/interactions/{}/{}/callback",
+                                    event.interaction_id, event.interaction_token
+                                ));
+                                let message = json!({
+                                    "type": 4,
+                                    "data": response_message
+                                });
+                                let _response = post.json(&message).send().await.unwrap();
+                            }
                         },
                         PacketData::HeartbeatAck => println!("Heartbeat Acknowledged"),
                     };

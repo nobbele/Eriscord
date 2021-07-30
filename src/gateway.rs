@@ -18,13 +18,14 @@ pub struct GuildData {
 pub struct UserData {
     pub id: String,
     pub avatar: String,
-    pub bot: bool,
+    pub bot: Option<bool>,
     pub discriminator: String,
     pub email: Option<String>,
+    #[serde(alias = "public_flags")]
     pub flags: u64,
-    pub mfa_enabled: bool,
+    pub mfa_enabled: Option<bool>,
     pub username: String,
-    pub verified: bool,
+    pub verified: Option<bool>,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -61,12 +62,21 @@ pub struct AuthorData {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct MemberData {
+    pub avatar: Option<Value>, // ?
     pub deaf: bool,
-    pub hoisted_role: Option<String>,
+    pub hoisted_role: Option<String>, // ?
+    pub is_pending: Option<bool>,     // ?
     pub joined_at: String,
     pub mute: bool,
+    pub nick: Option<String>,
+    pub pending: Option<bool>, // ?
+    pub permissions: Option<String>,
+    pub premium_since: Option<Value>, // ? Type
     pub roles: Vec<String>,
+    pub user: Option<UserData>,
 }
+
+// TODO remove option's make a message struct and flatten it here.
 
 #[derive(serde::Deserialize, Debug)]
 pub struct CreateMessageData {
@@ -78,18 +88,36 @@ pub struct CreateMessageData {
     pub edited_timestamp: Value, // ?
     pub embeds: Vec<Value>,      // ?
     pub flags: u64,
-    pub guild_id: String,
+    pub guild_id: Option<String>,
     pub id: String,
-    pub member: MemberData,
+    pub member: Option<MemberData>,
     pub mention_everyone: bool,
     pub mention_roles: Vec<Value>, // ?
     pub nonce: Option<String>,
     pub pinned: bool,
-    pub referenced_message: Value, // ?
+    pub referenced_message: Option<Value>, // ?
     pub timestamp: String,
     pub tts: bool,
     #[serde(alias = "type")]
     pub message_type: u64,
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct InteractionData {
+    pub component_type: u32,
+    pub custom_id: String,
+    pub values: Option<Vec<String>>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct CreateInteractionData {
+    pub channel_id: String,
+    pub data: InteractionData,
+    pub guild_id: String,
+    pub id: String,
+    pub member: MemberData,
+    pub message: CreateMessageData,
+    pub token: String,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -134,6 +162,16 @@ pub fn parse_gateway_packet(text: String) -> Result<Packet, PacketParseError> {
                         },
                         channel_id: data.channel_id,
                         content: data.content,
+                    })
+                }
+                "INTERACTION_CREATE" => {
+                    let data: CreateInteractionData = serde_json::from_value(resp.data).unwrap();
+                    event::Event::InteractionCreate(event::InteractionCreateEvent {
+                        channel_id: data.channel_id,
+                        custom_id: data.data.custom_id,
+                        values: data.data.values.unwrap_or_default(),
+                        interaction_token: data.token,
+                        interaction_id: data.id,
                     })
                 }
                 name => return Err(PacketParseError::UnknownEvent(name.to_owned(), resp.data)),

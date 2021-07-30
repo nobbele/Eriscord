@@ -29,6 +29,13 @@ pub trait EventHandler: Sync {
         _command: Command<'_>,
     ) {
     }
+    async fn on_interaction(
+        &mut self,
+        _client: &Client,
+        _event: &event::InteractionCreateEvent,
+    ) -> Option<Message> {
+        None
+    }
 }
 
 pub async fn send_message<'a>(client: &Client, channel_id: &str, message: impl Into<Message<'a>>) {
@@ -38,5 +45,5 @@ pub async fn send_message<'a>(client: &Client, channel_id: &str, message: impl I
         "https://discord.com/api/v9/channels/{}/messages",
         channel_id
     ));
-    post.json(&message).send().await.unwrap();
+    let _response = post.json(&message).send().await.unwrap();
 }
